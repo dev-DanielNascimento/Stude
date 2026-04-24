@@ -1,0 +1,7 @@
+FROM python 3.11.15-slim
+
+WORKDIR /pastadocker
+
+COPY requisitos.txt .
+
+EXPOSE 8502
