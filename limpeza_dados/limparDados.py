@@ -8,4 +8,4 @@ df['Pausas (min)'] = pd.to_numeric(df['Pausas (min)'], errors='coerce')
 df['Pausas (min)'] = df['Pausas (min)'].astype('Int64')
 df['Pausas (min)'] = df['Pausas (min)'].fillna(0)
 
-print(df.head(50))
+print(df.columns)
