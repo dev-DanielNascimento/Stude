@@ -4,16 +4,14 @@ import os
 
 @st.cache_resource #mantém o cache de conexão do streamlit
 def iniciar_conexao():
-    psycopg2.connect(
+    return psycopg2.connect(
         host=os.getenv("host"),
         user=os.getenv("user"),
         password=os.getenv("password"),
         dbname=os.getenv("dbname")
     )
 
-con = inicia_conexao()
-
-def criar_tabelas():
+def criar_tabelas(con): 
     with con.cursor() as cur:
         
         # 1. Tabela tags
@@ -43,4 +41,12 @@ def criar_tabelas():
             horas_alvo INT NOT NULL
         );
         """)
+
+        # 4. Cria tag default para previnir crash no primeiro save
+        cur.execute("""
+        INSERT INTO tags (id, tag) 
+        VALUES (1, 'Geral') 
+        ON CONFLICT (id) DO NOTHING;
+        """)
+        
     con.commit()
