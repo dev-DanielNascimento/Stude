@@ -17,4 +17,6 @@ services:
       - .env
     volumes: #Volume para manter app no disco para não ter que buildar toda vez que mudar o código
       - ../:/pastadocker
-    command: sh -c "streamlit run app.py"
+      #executa streamlit ao buildar container e adiciona parâmetro de monitoramento de atualização
+      # de código
+    command: sh -c "streamlit run app.py --server.fileWatcherType poll" 
