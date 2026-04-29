@@ -8,6 +8,10 @@ from metodos.database import iniciar_conexao, criar_tabelas, obter_tags
 st.set_page_config(page_title="Stude", page_icon="📚", layout="centered")
 
 con = iniciar_conexao()
+try:
+    con.rollback() # Limpa qualquer transação falha residual
+except:
+    pass
 criar_tabelas(con)
 tradutorTags = obter_tags(con)
 
@@ -93,7 +97,6 @@ with tab1:
 # ==========================================
 with tab2:
     
-    
     st.markdown("#### Configure suas matérias e Visualize")
     
     with st.form("configuracoes_form", clear_on_submit=True):
@@ -109,43 +112,50 @@ with tab2:
         with col_botao:
             submit_materia = st.form_submit_button("Salvar Matéria", use_container_width=True)
 
+        col_input2, col_botao2 = st.columns([3, 1])
+
+        with col_input2:
+            tag_excluir = st.selectbox("Excluir matéria", options=list(tradutorTags.keys()), label_visibility="collapsed")
+        
+        with col_botao2:
+            btn_excluir = st.form_submit_button("Excluir", use_container_width=True)
+        
     if submit_materia:
         if nova_materia.strip() == "":
             st.warning("⚠️ O nome da matéria não pode ser vazio!")
         else:
-            with con.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO tags (tag) 
-                    VALUES (%s);
-                """, (nova_materia.capitalize(),))
-            
-            con.commit()
-            st.success(f"✅ Matéria '{nova_materia.capitalize()}' criada com sucesso!")
-            time.sleep(1)
-            st.rerun()
-    
-
-# ==========================================
-# 2.1. Exclusão e Adição de Tags
-# ==========================================
-
-with st.form("form_excluir_tag"):
-        col_del1, col_del2 = st.columns([3, 1])
-        with col_del1:
-            tag_excluir = st.selectbox("Excluir matéria", options=list(tradutorTags.keys()), label_visibility="collapsed")
-        with col_del2:
-            btn_excluir = st.form_submit_button("Excluir", use_container_width=True)
-
-        if btn_excluir:
-            if tag_excluir:
-                id_excluir = tradutorTags[tag_excluir]
+            try:
                 with con.cursor() as cur:
-                    cur.execute("DELETE FROM tags WHERE id = %s;", (id_excluir,))
+                    cur.execute("""
+                        INSERT INTO tags (tag) 
+                        VALUES (%s);
+                    """, (nova_materia.capitalize(),))
+                
                 con.commit()
-                st.success(f"🗑️ Matéria '{tag_excluir}' excluída!")
+                st.success(f"✅ Matéria '{nova_materia.capitalize()}' criada com sucesso!")
                 time.sleep(1)
                 st.rerun()
-
+            except Exception as e:
+                con.rollback()
+                st.error(f"Erro ao salvar matéria: {e}")
+            
+    if btn_excluir:
+        if tag_excluir:
+            try:
+                id_excluir = tradutorTags[tag_excluir]
+                with con.cursor() as cur:
+                    # Tenta deletar a tag
+                    cur.execute("DELETE FROM tags WHERE id = %s;", (id_excluir,))
+                con.commit()
+                st.toast(f"🗑️ Matéria '{tag_excluir}' excluída!")
+                time.sleep(1)
+                st.rerun()
+            except psycopg2.errors.ForeignKeyViolation:
+                con.rollback()
+                st.error(f"❌ Não é possível excluir '{tag_excluir}' pois existem registros de estudo vinculados a ela.")
+            except Exception as e:
+                con.rollback()
+                st.error(f"Erro ao excluir matéria: {e}")
 # ==========================================
 # 2.2 Visualização de Tags
 # ==========================================
@@ -159,8 +169,6 @@ with st.form("form_excluir_tag"):
     else:
         st.info("Nenhum registro encontrado ainda.")
 
-
-
 # ==========================================
 # 3. SALVANDO NO BANCO DE DADOS
 # ==========================================
@@ -170,13 +178,17 @@ if stop and 'minutos_estudo' in locals():
         st.error("⚠️ Escolha uma matéria antes de parar o tempo!")
         st.session_state.estudando = True
     else:
-        data_estudo = datetime.now().date()
-        tag_escolhida_id = tradutorTags[tag_selecionada]
+        try:
+            data_estudo = datetime.now().date()
+            tag_escolhida_id = tradutorTags[tag_selecionada]
 
-        with con.cursor() as cur:
-            cur.execute("""
-                INSERT INTO log_estudo (data, minutos, pausas_min, tag_id)
-                VALUES (%s, %s, %s, %s)
-            """, (data_estudo, minutos_estudo, minutos_pausa, tag_escolhida_id))
-            
-        con.commit()
+            with con.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO log_estudo (data, minutos, pausas_min, tag_id)
+                    VALUES (%s, %s, %s, %s)
+                """, (data_estudo, minutos_estudo, minutos_pausa, tag_escolhida_id))
+                
+            con.commit()
+        except Exception as e:
+            con.rollback()
+            st.error(f"Erro ao salvar sessão de estudo: {e}")

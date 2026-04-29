@@ -16,52 +16,53 @@ def iniciar_conexao():
     )
 
 def criar_tabelas(con): 
-    with con.cursor() as cur:
-        
-        # 1. Tabela tags
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS tags(
-            id SERIAL PRIMARY KEY,
-            tag VARCHAR(50)
-        );
-        """)
-        
-        # 2. Tabela log_estudo
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS log_estudo(
-            id SERIAL PRIMARY KEY,
-            data DATE NOT NULL,
-            minutos INT,
-            pausas_min INT,
-            tag_id INT REFERENCES tags(id)
-        );
-        """)
-        
-        # 3. Tabela metas
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS metas(
-            id SERIAL PRIMARY KEY,
-            tipo_meta VARCHAR(50),
-            horas_alvo INT NOT NULL
-        );
-        """)
-    con.commit()
+    try:
+        with con.cursor() as cur:
+            # 1. Tabela tags
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS tags(
+                id SERIAL PRIMARY KEY,
+                tag VARCHAR(50)
+            );
+            """)
+            
+            # 2. Tabela log_estudo
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS log_estudo(
+                id SERIAL PRIMARY KEY,
+                data DATE NOT NULL,
+                minutos INT,
+                pausas_min INT,
+                tag_id INT REFERENCES tags(id)
+            );
+            """)
+            
+            # 3. Tabela metas
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS metas(
+                id SERIAL PRIMARY KEY,
+                tipo_meta VARCHAR(50),
+                horas_alvo INT NOT NULL
+            );
+            """)
+        con.commit()
+    except Exception as e:
+        con.rollback()
+        st.error(f"Erro ao inicializar banco de dados: {e}")
 
 def obter_tags(con):
-    with con.cursor() as cur:
-        # Pede para o banco: "Me dê o texto e o ID de todas as tags, em ordem alfabética"
-        cur.execute("SELECT tag, id FROM tags ORDER BY tag;")
-        
-        # Pega todas as respostas do banco
-        resultados = cur.fetchall() 
-        
-        # Cria um dicionário vazio
-        tradutor_dinamico = {}
-        
-        # Preenche o dicionário com o que veio do banco
-        for linha in resultados:
-            nome_da_tag = linha[0] # Ex: "Matemática"
-            id_da_tag = linha[1]   # Ex: 2
-            tradutor_dinamico[nome_da_tag] = id_da_tag
+    try:
+        with con.cursor() as cur:
+            cur.execute("SELECT tag, id FROM tags ORDER BY tag;")
+            resultados = cur.fetchall() 
             
-    return tradutor_dinamico
+            tradutor_dinamico = {}
+            for linha in resultados:
+                nome_da_tag = linha[0]
+                id_da_tag = linha[1]
+                tradutor_dinamico[nome_da_tag] = id_da_tag
+                
+        return tradutor_dinamico
+    except Exception as e:
+        con.rollback()
+        return {}
