@@ -3,8 +3,8 @@ import psycopg2
 from datetime import datetime
 import time
 import pandas as pd
-from metodos.database import iniciar_conexao, criar_tabelas, obter_tags
-# from metodos.agregacao import
+from metodos.database import iniciar_conexao, criar_tabelas, obter_tags, agregar_metas
+from metodos.agregacao import
 
 st.set_page_config(page_title="Stude", page_icon="📚", layout="centered")
 
@@ -34,7 +34,7 @@ with tab1:
     col1, col2, col3, col4 = st.columns(4, vertical_alignment="bottom")
     
     with col1: #START
-        start = st.button("Start", use_container_width=True) 
+        start = st.button("Start", width=True) 
         
         # 2. LÓGICA DO START
         if start and not st.session_state.estudando:
@@ -52,7 +52,7 @@ with tab1:
         )
         
     with col3: # STOP
-        stop = st.button("Stop", use_container_width=True)
+        stop = st.button("Stop", width=True)
         
         # 3. LÓGICA DO STOP
         if stop and st.session_state.estudando:
@@ -107,7 +107,7 @@ with tab2:
             )
 
         with col_botao:
-            submit_materia = st.form_submit_button("Salvar Matéria", use_container_width=True)
+            submit_materia = st.form_submit_button("Salvar Matéria", width=True)
 
         col_input2, col_botao2 = st.columns([3, 1])
 
@@ -115,7 +115,7 @@ with tab2:
             tag_excluir = st.selectbox("Excluir matéria", options=list(tradutorTags.keys()), label_visibility="collapsed")
         
         with col_botao2:
-            btn_excluir = st.form_submit_button("Excluir", use_container_width=True)
+            btn_excluir = st.form_submit_button("Excluir", width=True)
         
     if submit_materia:
         if nova_materia.strip() == "":
@@ -162,7 +162,7 @@ with tab2:
     visualizarTags = pd.read_sql(queryTags, con)
     if not visualizarTags.empty:
         visualizarTags.fillna('', inplace=True) 
-        st.dataframe(visualizarTags, use_container_width=True, hide_index=True)
+        st.dataframe(visualizarTags, width=True, hide_index=True)
     else:
         st.info("Nenhum registro encontrado ainda.")
 
