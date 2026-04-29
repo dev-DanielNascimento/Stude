@@ -2,6 +2,7 @@ import streamlit as st
 import psycopg2
 from datetime import datetime
 import time
+import pandas as pd
 from metodos.database import iniciar_conexao, criar_tabelas, obter_tags
 
 st.set_page_config(page_title="Stude", page_icon="📚", layout="centered")
@@ -35,7 +36,7 @@ with tab1:
         if start and not st.session_state.estudando:
             st.session_state.hora_inicio = datetime.now() # Guarda a hora exata agora!
             st.session_state.estudando = True
-            st.info("⏱️ O tempo está rodando! Bons estudos.")
+            st.toast("⏱️ O tempo está rodando! Bons estudos.")
             
     with col2:
         st.write("\n\n")
@@ -67,7 +68,7 @@ with tab1:
             st.session_state.hora_inicio = None
             
             # Mostra o resultado na tela!
-            st.success(f"🎉 Sessão finalizada! Você estudou por {minutos_estudo} minutos.")
+            st.toast(f"🎉 Sessão finalizada! Você estudou por {minutos_estudo} minutos.")
 
     with col4:
         # Renomeei a variável para não conflitar com a palavra "pause"
@@ -91,6 +92,8 @@ with tab1:
 # 2. ABA 2: CONFIGURAÇÕES
 # ==========================================
 with tab2:
+    
+    
     st.markdown("#### Configure suas matérias e Visualize")
     
     with st.form("configuracoes_form", clear_on_submit=True):
@@ -120,6 +123,43 @@ with tab2:
             st.success(f"✅ Matéria '{nova_materia.capitalize()}' criada com sucesso!")
             time.sleep(1)
             st.rerun()
+    
+
+# ==========================================
+# 2.1. Exclusão e Adição de Tags
+# ==========================================
+
+with st.form("form_excluir_tag"):
+        col_del1, col_del2 = st.columns([3, 1])
+        with col_del1:
+            tag_excluir = st.selectbox("Excluir matéria", options=list(tradutorTags.keys()), label_visibility="collapsed")
+        with col_del2:
+            btn_excluir = st.form_submit_button("Excluir", use_container_width=True)
+
+        if btn_excluir:
+            if tag_excluir:
+                id_excluir = tradutorTags[tag_excluir]
+                with con.cursor() as cur:
+                    cur.execute("DELETE FROM tags WHERE id = %s;", (id_excluir,))
+                con.commit()
+                st.success(f"🗑️ Matéria '{tag_excluir}' excluída!")
+                time.sleep(1)
+                st.rerun()
+
+# ==========================================
+# 2.2 Visualização de Tags
+# ==========================================
+    queryTags = """
+    SELECT tag FROM tags
+    """
+    visualizarTags = pd.read_sql(queryTags, con)
+    if not visualizarTags.empty:
+        visualizarTags.fillna('', inplace=True) 
+        st.dataframe(visualizarTags, use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum registro encontrado ainda.")
+
+
 
 # ==========================================
 # 3. SALVANDO NO BANCO DE DADOS
