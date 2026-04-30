@@ -45,6 +45,17 @@ def criar_tabelas(con):
                 horas_alvo INT NOT NULL
             );
             """)
+
+            #4. Tabela notas
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS notas (
+                id INT PRIMARY KEY,
+                texto TEXT
+            );
+            """)
+            
+            # Garante que existe pelo menos uma linha para ser editada no app.py
+            cur.execute("INSERT INTO notas (id, texto) VALUES (1, '') ON CONFLICT (id) DO NOTHING;")
         con.commit()
     except Exception as e:
         con.rollback()
@@ -65,4 +76,4 @@ def obter_tags(con):
         return tradutor_dinamico
     except Exception as e:
         con.rollback()
-        return {}
+        return {}   

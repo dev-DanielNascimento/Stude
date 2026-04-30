@@ -39,9 +39,9 @@ with tab1:
     with col1: #START
         start = st.button("Start", use_container_width=True) 
         
-        # 2. LÓGICA DO START
+        # LÓGICA DO START
         if start and not st.session_state.estudando:
-            st.session_state.hora_inicio = datetime.now() # Guarda a hora exata agora!
+            st.session_state.hora_inicio = datetime.now() # Guarda a hora exata agora
             st.session_state.estudando = True
             st.toast("⏱️ O tempo está rodando! Bons estudos.")
             
@@ -57,7 +57,7 @@ with tab1:
     with col3: # STOP
         stop = st.button("Stop", use_container_width=True)
         
-        # 3. LÓGICA DO STOP
+        # LÓGICA DO STOP
         if stop and st.session_state.estudando:
             hora_fim = datetime.now()
             
@@ -72,13 +72,15 @@ with tab1:
             st.session_state.estudando = False
             st.session_state.hora_inicio = None
             
-            # Mostra o resultado na tela!
+            # Mostra o resultado na tela
             st.toast(f"🎉 Sessão finalizada! Você estudou por {minutos_estudo} minutos.")
 
     with col4: # PAUSA
         minutos_pausa = st.number_input("", min_value=0, step=1)
 
     st.divider()
+    
+    # Área de horas estudadas X metas
     
     col5, col6, col7 = st.columns(3)
     with col5:
@@ -89,9 +91,25 @@ with tab1:
         st.metric(label="Horas feitas no mês", value=f"{horas_mes}h") # falta a meta
 
     st.divider() 
-    
-    notas = st.text_area("Espaço para escrever:", value="Substituir valor", height=150)
 
+    # Notas
+    with con.cursor() as cur:
+        cur.execute("SELECT texto FROM notas WHERE id = 1;")
+        resultado = cur.fetchone()
+        nota_antiga = resultado[0] if resultado else ""
+
+    nota_nova = st.text_area(
+        "Espaço para escrever:", 
+        value=nota_antiga,
+        height=150, 
+        placeholder="Escreva suas notas"
+    )
+
+    if nota_nova != nota_antiga:
+        with con.cursor() as cur:
+            cur.execute("UPDATE notas SET texto = %s WHERE id = 1;", (nota_nova,))
+        con.commit()
+        st.toast("✅ Nota salva!")
 # ==========================================
 # 2. ABA 2: CONFIGURAÇÕES
 # ==========================================
@@ -105,7 +123,7 @@ with tab2:
         with col_input:
             nova_materia = st.text_input(
                 "Digite o nome da matéria", 
-                placeholder="Ex: Matemática, Python, etc...",
+                placeholder="Crie sua matéria aqui",
                 label_visibility="collapsed" 
             )
 
@@ -115,7 +133,7 @@ with tab2:
         col_input2, col_botao2 = st.columns([3, 1])
 
         with col_input2:
-            tag_excluir = st.selectbox("Excluir matéria", options=list(tradutorTags.keys()), label_visibility="collapsed")
+            tag_excluir = st.selectbox("Excluir matéria", options=list(tradutorTags.keys()), label_visibility="collapsed", placeholder="Selecione a matéria para exclusão")
         
         with col_botao2:
             btn_excluir = st.form_submit_button("Excluir", use_container_width=True)
