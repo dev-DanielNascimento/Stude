@@ -45,9 +45,10 @@ with tab1:
         )
         
     with col3: # PAUSA
-        minutos_pausa = st.number_input("", min_value=0, step=1)
+        minutos_pausa = st.number_input("⏸️ Minutos Ociosos", min_value=0, step=1)
     
     with col4: # STOP
+        st.caption("Parar Temporizador")
         stop = st.button("Stop", use_container_width=True)
         if stop:
             if tag_selecionada is None:
