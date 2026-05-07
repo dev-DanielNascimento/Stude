@@ -17,15 +17,6 @@ except:
 criar_tabelas(con)
 tradutorTags = obter_tags(con)
 
-# Se a variável 'estudando' não existir cria ela como Falsa
-if 'estudando' not in st.session_state:
-    st.session_state.estudando = False
-
-# Se a hora de início não existir, criamos ela vazia
-if 'hora_inicio' not in st.session_state:
-    st.session_state.hora_inicio = None
-
-
 tab1, tab2 = st.tabs(["Ciclos de Estudo", "Configurações"])
 
 # ==========================================
@@ -36,13 +27,12 @@ with tab1:
     
     with col1: #START
         start = st.button("Start", use_container_width=True) 
-        
-        # LÓGICA DO START
-        if start and not st.session_state.estudando:
-            st.session_state.hora_inicio = datetime.now() # Guarda a hora exata agora
-            st.session_state.estudando = True
-            st.toast("⏱️ O tempo está rodando! Bons estudos.")
-            
+        if start:
+            with con.cursor() as cur:
+                cur.execute("DELETE FROM sessao") # Primeiro deleta sessão anterior
+                cur.execute("INSERT INTO sessao (id, hora_inicial) VALUES (1, NOW())") # Insere o timestamp atual
+                con.commit()
+            st.toast("▶️ Tempo rodando!")
     with col2: # SELEÇÃO DE MATÉRIA
         tag_selecionada = st.selectbox(
             "Escolha de tag", 
@@ -52,44 +42,53 @@ with tab1:
             placeholder="Matéria"
         )
         
-    with col3: # STOP
-        stop = st.button("Stop", use_container_width=True)
-        
-        # LÓGICA DO STOP
-        if stop and st.session_state.estudando:
-            hora_fim = datetime.now()
-            
-            tempo_total = (hora_fim)-(st.session_state.hora_inicio)
-            minutos_estudo = int(tempo_total.total_seconds() / 60)
-            
-            # Se você parar muito rápido durante os testes, ele salva pelo menos 1 min
-            if minutos_estudo == 0:
-                minutos_estudo = 1 
-                
-            # Esvazia a variável para uma próxima sessão
-            st.session_state.estudando = False
-            st.session_state.hora_inicio = None
-            
-            # Mostra o resultado na tela
-            st.toast(f"🎉 Sessão finalizada! Você estudou por {minutos_estudo} minutos.")
-
-    with col4: # PAUSA
+    with col3: # PAUSA
         minutos_pausa = st.number_input("", min_value=0, step=1)
-
+    
+    with col4: # STOP
+        stop = st.button("Stop", use_container_width=True)
+        if stop:
+            if tag_selecionada is None:
+                st.error("⚠️ Escolha uma matéria antes de parar o tempo!")
+            else:
+                with con.cursor() as cur:
+                    try:
+                        # 1. Atualiza hora final
+                        cur.execute("UPDATE sessao SET hora_final = NOW() WHERE id = 1")
+                        
+                        # 2. Calcula minutos estudados
+                        cur.execute("SELECT ROUND(EXTRACT(EPOCH FROM (hora_final - hora_inicial)) / 60) FROM sessao WHERE id = 1")
+                        resultado = cur.fetchone()
+                        if resultado:
+                            minutos_estudados = max(0, int(resultado[0]))
+                            tag_escolhida_id = tradutorTags[tag_selecionada]
+                            # 3. Salva no log de estudo
+                            cur.execute("""
+                                INSERT INTO log_estudo (data, minutos, pausas_min, tag_id)
+                                VALUES (CURRENT_DATE, %s, %s, %s)
+                            """, (minutos_estudados, minutos_pausa, tag_escolhida_id))
+                        
+                            con.commit()
+                            st.toast(f"🎉 Sessão finalizada! Você estudou por {minutos_estudados} minutos.")
+                            time.sleep(1)
+                            st.rerun()
+                    except Exception as e:
+                        con.rollback()
+                        st.error(f"Erro ao salvar sessão de estudo: {e}")
     st.divider()
     
     # Área de horas estudadas X metas
+    h_hoje, m_hoje, h_semana, m_semana, h_mes, m_mes = agregar_horas(con)
 
-    horas_hoje, horas_semana, horas_mes = agregar_horas(con)
     meta_semana, meta_mes = extrair_metas(con)
     
     col5, col6, col7 = st.columns(3, vertical_alignment="bottom")
     with col5:
-        st.metric(label="Horas feitas hoje x Meta semanal", value=f"{horas_hoje}h/{meta_semana}h")
+        st.metric(label="Horas feitas hoje x Meta semanal", value=f"{h_hoje}h{m_hoje}min / {meta_semana}h")
     with col6:
-        st.metric(label="Horas feitas na semana x Meta mensal", value=f"{horas_semana}h/{meta_mes}h") 
+        st.metric(label="Horas feitas na semana x Meta mensal", value=f"{h_semana}h{m_semana}min / {meta_mes}h") 
     with col7:
-        st.metric(label="Horas feitas no mês", value=f"{horas_mes}h") 
+        st.metric(label="Horas feitas no mês", value=f"{h_mes}h{m_mes}min") 
     st.divider() 
 
     # Notas
@@ -111,29 +110,6 @@ with tab1:
         con.commit()
         st.toast("✅ Nota salva!")
 
-# ==========================================
-# 1.1. SALVANDO NO BANCO DE DADOS
-# ==========================================
-if stop and 'minutos_estudo' in locals():
-    # Pegamos a data de hoje para salvar
-    if tag_selecionada is None:
-        st.error("⚠️ Escolha uma matéria antes de parar o tempo!")
-        st.session_state.estudando = True
-    else:
-        try:
-            data_estudo = datetime.now().date()
-            tag_escolhida_id = tradutorTags[tag_selecionada]
-
-            with con.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO log_estudo (data, minutos, pausas_min, tag_id)
-                    VALUES (%s, %s, %s, %s)
-                """, (data_estudo, minutos_estudo, minutos_pausa, tag_escolhida_id))
-                
-            con.commit()
-        except Exception as e:
-            con.rollback()
-            st.error(f"Erro ao salvar sessão de estudo: {e}")
 # ==========================================
 # 2. ABA 2: CONFIGURAÇÕES
 # ==========================================

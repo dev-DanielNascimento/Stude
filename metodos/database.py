@@ -56,6 +56,13 @@ def criar_tabelas(con):
             
             # Garante que existe pelo menos uma linha para ser editada no app.py
             cur.execute("INSERT INTO notas (id, texto) VALUES (1, '') ON CONFLICT (id) DO NOTHING;")
+
+            #5. Tabela Sessão
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS sessao(
+            id INT PRIMARY KEY,
+            hora_inicial TIMESTAMP,
+            hora_final TIMESTAMP); """)
         con.commit()
     except Exception as e:
         con.rollback()
